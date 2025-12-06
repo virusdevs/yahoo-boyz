@@ -23,7 +23,7 @@ import Contributions from "@/pages/Contributions";
 import Loans from "@/pages/Loans";
 import LoanApply from "@/pages/LoanApply";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
-import NotFound from "@/pages/not-found";
+import NotFound from "@/pages/notFound";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
