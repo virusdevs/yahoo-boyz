@@ -1,0 +1,240 @@
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  User,
+  LogOut,
+  LayoutDashboard,
+  Settings,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
+
+const publicLinks = [
+  { href: "/", label: "Home" },
+  { href: "/about", label: "About Us" },
+  { href: "/contact", label: "Contact" },
+];
+
+export function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [location] = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+              YB
+            </div>
+            <span className="font-bold text-lg hidden sm:inline-block">
+              YAHOO-BOYZ
+            </span>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {publicLinks.map((link) => (
+              <Link key={link.href} href={link.href}>
+                <Button
+                  variant={location === link.href ? "secondary" : "ghost"}
+                  size="sm"
+                  data-testid={`nav-link-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                >
+                  {link.label}
+                </Button>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              data-testid="button-theme-toggle"
+            >
+              {theme === "light" ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </Button>
+
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-9 w-9 rounded-full"
+                    data-testid="button-user-menu"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage
+                        src={user.profilePicture || undefined}
+                        alt={user.name}
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {getInitials(user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex items-center gap-2 p-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={user.profilePicture || undefined}
+                        alt={user.name}
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {getInitials(user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-0.5 leading-none">
+                      <p className="font-medium text-sm">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <Link href="/dashboard">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      data-testid="menu-dashboard"
+                    >
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </DropdownMenuItem>
+                  </Link>
+                  {isAdmin && (
+                    <Link href="/admin">
+                      <DropdownMenuItem
+                        className="cursor-pointer"
+                        data-testid="menu-admin"
+                      >
+                        <Settings className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </DropdownMenuItem>
+                    </Link>
+                  )}
+                  <Link href="/profile">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      data-testid="menu-profile"
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </DropdownMenuItem>
+                  </Link>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="cursor-pointer text-destructive"
+                    data-testid="menu-logout"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" data-testid="button-login">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm" data-testid="button-signup">
+                    Join Now
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              data-testid="button-mobile-menu"
+            >
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t py-4 space-y-2">
+            {publicLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Button
+                  variant={location === link.href ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  data-testid={`mobile-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                >
+                  {link.label}
+                </Button>
+              </Link>
+            ))}
+            {!isAuthenticated && (
+              <>
+                <div className="pt-2 border-t space-y-2">
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      data-testid="mobile-login"
+                    >
+                      Login
+                    </Button>
+                  </Link>
+                  <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full" data-testid="mobile-signup">
+                      Join Now
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}

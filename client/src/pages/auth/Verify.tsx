@@ -1,0 +1,184 @@
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { ArrowLeft, CheckCircle } from "lucide-react";
+import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { apiRequest } from "@/lib/queryClient";
+
+export default function Verify() {
+  const [, setLocation] = useLocation();
+  const search = useSearch();
+  const email = new URLSearchParams(search).get("email") || "";
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [isVerified, setIsVerified] = useState(false);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    if (inputRefs.current[0]) {
+      inputRefs.current[0].focus();
+    }
+  }, []);
+
+  const verifyMutation = useMutation({
+    mutationFn: async (verificationCode: string) => {
+      const response = await apiRequest("POST", "/api/auth/verify", {
+        email,
+        code: verificationCode,
+      });
+      return response;
+    },
+    onSuccess: () => {
+      setIsVerified(true);
+      toast.success("Account verified successfully!", { closeButton: true });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Verification failed", { closeButton: true });
+      setCode(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/auth/resend-code", { email });
+      return response;
+    },
+    onSuccess: () => {
+      toast.success("Verification code resent!", { closeButton: true });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to resend code", { closeButton: true });
+    },
+  });
+
+  const handleChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+
+    const newCode = [...code];
+    newCode[index] = value.slice(-1);
+    setCode(newCode);
+
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    const fullCode = newCode.join("");
+    if (fullCode.length === 6) {
+      verifyMutation.mutate(fullCode);
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").slice(0, 6);
+    if (!/^\d+$/.test(pastedData)) return;
+
+    const newCode = [...code];
+    pastedData.split("").forEach((char, i) => {
+      if (i < 6) newCode[i] = char;
+    });
+    setCode(newCode);
+
+    if (pastedData.length === 6) {
+      verifyMutation.mutate(pastedData);
+    }
+  };
+
+  if (isVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/10 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-8 text-center">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 rounded-full bg-primary/10">
+                <CheckCircle className="h-12 w-12 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Verified!</h2>
+            <p className="text-muted-foreground mb-6">
+              Your account has been successfully verified. You can now log in.
+            </p>
+            <Link href="/login">
+              <Button className="w-full" data-testid="button-go-to-login">
+                Continue to Login
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/10 p-4">
+      <div className="w-full max-w-md">
+        <Link href="/signup" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Signup
+        </Link>
+
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg">
+                YB
+              </div>
+            </div>
+            <CardTitle className="text-2xl">Verify Your Account</CardTitle>
+            <CardDescription>
+              Enter the 6-digit code sent to {email}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center gap-2 mb-6" onPaste={handlePaste}>
+              {code.map((digit, index) => (
+                <Input
+                  key={index}
+                  ref={(el) => (inputRefs.current[index] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  className="w-12 h-14 text-center text-xl font-bold"
+                  disabled={verifyMutation.isPending}
+                  data-testid={`input-otp-${index}`}
+                />
+              ))}
+            </div>
+
+            {verifyMutation.isPending && (
+              <p className="text-center text-sm text-muted-foreground mb-4">
+                Verifying...
+              </p>
+            )}
+
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                Didn't receive the code?
+              </p>
+              <Button
+                variant="ghost"
+                onClick={() => resendMutation.mutate()}
+                disabled={resendMutation.isPending}
+                data-testid="button-resend-code"
+              >
+                {resendMutation.isPending ? "Sending..." : "Resend Code"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
