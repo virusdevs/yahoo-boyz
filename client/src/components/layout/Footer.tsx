@@ -101,7 +101,7 @@ export function Footer() {
               rel="noopener noreferrer"
               className="text-blue-500 hover:text-blue-600 transition-colors"
             >
-              gifted tech
+              Gifted Tech
             </a>
           </p>
         </div>
